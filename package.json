@@ -1,0 +1,17 @@
+{
+  "name": "keycloak-admin-client-cjs",
+  "version": "24.0.4",
+  "description": "Keycloak Admin Client as CJS",
+  "main": "index.js",
+  "scripts": {
+    "build": "esbuild index.ts --platform=node --bundle --format=cjs --outfile=index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@keycloak/keycloak-admin-client": "24.0.4"
+  },
+  "devDependencies": {
+    "esbuild": "^0.21.3"
+  }
+}
