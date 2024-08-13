@@ -337,7 +337,7 @@ var Agent = class {
     } else if (payload instanceof FormData) {
       requestOptions.body = payload;
     } else {
-      requestOptions.body = JSON.stringify(payloadKey ? payload[payloadKey] : payload);
+      requestOptions.body = payloadKey && typeof payload[payloadKey] === "string" ? payload[payloadKey] : JSON.stringify(payloadKey ? payload[payloadKey] : payload);
     }
     if (!requestHeaders.has("content-type") && !(payload instanceof FormData)) {
       requestHeaders.set("content-type", "application/json");
@@ -575,6 +575,30 @@ var AuthenticationManagement = class extends Resource {
     path: "/executions/{id}/raise-priority",
     urlParamKeys: ["id"]
   });
+  // Get required actions provider's configuration description
+  getRequiredActionConfigDescription = this.makeRequest({
+    method: "GET",
+    path: "/required-actions/{alias}/config-description",
+    urlParamKeys: ["alias"]
+  });
+  // Get the configuration of the RequiredAction provider in the current Realm.
+  getRequiredActionConfig = this.makeRequest({
+    method: "GET",
+    path: "/required-actions/{alias}/config",
+    urlParamKeys: ["alias"]
+  });
+  // Remove the configuration from the RequiredAction provider in the current Realm.
+  removeRequiredActionConfig = this.makeRequest({
+    method: "DELETE",
+    path: "/required-actions/{alias}/config",
+    urlParamKeys: ["alias"]
+  });
+  // Update the configuration from the RequiredAction provider in the current Realm.
+  updateRequiredActionConfig = this.makeUpdateRequest({
+    method: "PUT",
+    path: "/required-actions/{alias}/config",
+    urlParamKeys: ["alias"]
+  });
   getConfigDescription = this.makeRequest({
     method: "GET",
     path: "config-description/{providerId}",
@@ -656,7 +680,11 @@ var ClientPolicies = class extends Resource {
   /* Client Policies */
   listPolicies = this.makeRequest({
     method: "GET",
-    path: "/policies"
+    path: "/policies",
+    queryParamKeys: ["include-global-policies"],
+    keyTransform: {
+      includeGlobalPolicies: "include-global-policies"
+    }
   });
   updatePolicy = this.makeRequest({
     method: "PUT",
@@ -1571,7 +1599,7 @@ var Groups = class extends Resource {
     method: "GET",
     path: "/{parentId}/children",
     urlParamKeys: ["parentId"],
-    queryParamKeys: ["first", "max", "briefRepresentation"],
+    queryParamKeys: ["search", "first", "max", "briefRepresentation"],
     catchNotFound: true
   });
   /**
@@ -2010,6 +2038,83 @@ var Realms = class extends Resource {
   }
 };
 
+// node_modules/@keycloak/keycloak-admin-client/lib/resources/organizations.js
+var Organizations = class extends Resource {
+  /**
+   * Organizations
+   */
+  constructor(client) {
+    super(client, {
+      path: "/admin/realms/{realm}/organizations",
+      getUrlParams: () => ({
+        realm: client.realmName
+      }),
+      getBaseUrl: () => client.baseUrl
+    });
+  }
+  find = this.makeRequest({
+    method: "GET",
+    path: "/"
+  });
+  findOne = this.makeRequest({
+    method: "GET",
+    path: "/{id}",
+    urlParamKeys: ["id"]
+  });
+  create = this.makeRequest({
+    method: "POST",
+    path: "/",
+    returnResourceIdInLocationHeader: { field: "id" }
+  });
+  delById = this.makeRequest({
+    method: "DELETE",
+    path: "/{id}",
+    urlParamKeys: ["id"]
+  });
+  updateById = this.makeUpdateRequest({
+    method: "PUT",
+    path: "/{id}",
+    urlParamKeys: ["id"]
+  });
+  listMembers = this.makeRequest({
+    method: "GET",
+    path: "/{orgId}/members",
+    urlParamKeys: ["orgId"]
+  });
+  addMember = this.makeRequest({
+    method: "POST",
+    path: "/{orgId}/members",
+    urlParamKeys: ["orgId"],
+    payloadKey: "userId"
+  });
+  delMember = this.makeRequest({
+    method: "DELETE",
+    path: "/{orgId}/members/{userId}",
+    urlParamKeys: ["orgId", "userId"]
+  });
+  invite = this.makeUpdateRequest({
+    method: "POST",
+    path: "/{orgId}/members/invite-user",
+    urlParamKeys: ["orgId"]
+  });
+  listIdentityProviders = this.makeRequest({
+    method: "GET",
+    path: "/{orgId}/identity-providers",
+    urlParamKeys: ["orgId"]
+  });
+  linkIdp = this.makeRequest({
+    method: "POST",
+    path: "/{orgId}/identity-providers",
+    urlParamKeys: ["orgId"],
+    payloadKey: "alias"
+  });
+  unLinkIdp = this.makeRequest({
+    method: "DELETE",
+    path: "/{orgId}/identity-providers/{alias}",
+    urlParamKeys: ["orgId", "alias"]
+  });
+};
+
 // node_modules/@keycloak/keycloak-admin-client/lib/resources/roles.js
 var Roles = class extends Resource {
   /**
@@ -2422,6 +2527,11 @@ var Users = class extends Resource {
     path: "/{id}/consents/{clientId}",
     urlParamKeys: ["id", "clientId"]
   });
+  getUnmanagedAttributes = this.makeRequest({
+    method: "GET",
+    path: "/{id}/unmanagedAttributes",
+    urlParamKeys: ["id"]
+  });
   constructor(client) {
     super(client, {
       path: "/admin/realms/{realm}/users",
@@ -2574,6 +2684,7 @@ var KeycloakAdminClient = class {
   userStorageProvider;
   groups;
   roles;
+  organizations;
   clients;
   realms;
   clientScopes;
@@ -2603,6 +2714,7 @@ var KeycloakAdminClient = class {
     this.userStorageProvider = new UserStorageProvider(this);
     this.groups = new Groups(this);
     this.roles = new Roles(this);
+    this.organizations = new Organizations(this);
     this.clients = new Clients(this);
     this.realms = new Realms(this);
     this.clientScopes = new ClientScopes(this);
