@@ -1,6 +1,6 @@
 {
   "name": "@truediogo/keycloak-admin-client-cjs",
-  "version": "25.0.4",
+  "version": "26.0.5",
   "description": "Keycloak Admin Client as CJS",
   "main": "index.js",
   "scripts": {
@@ -9,7 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@keycloak/keycloak-admin-client": "^25.0.4"
+    "@keycloak/keycloak-admin-client": "^26.0.5"
   },
   "devDependencies": {
     "esbuild": "^0.23.0"

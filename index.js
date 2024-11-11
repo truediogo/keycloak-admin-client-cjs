@@ -194,6 +194,7 @@ function parseTemplate(template) {
 }
 
 // node_modules/@keycloak/keycloak-admin-client/lib/utils/fetchWithError.js
+var ERROR_FIELDS = ["error", "errorMessage"];
 var NetworkError = class extends Error {
   response;
   responseData;
@@ -207,7 +208,8 @@ async function fetchWithError(input, init) {
   const response = await fetch(input, init);
   if (!response.ok) {
     const responseData = await parseResponse(response);
-    throw new NetworkError("Network response was not OK.", {
+    const message = getErrorMessage(responseData);
+    throw new NetworkError(message, {
       response,
       responseData
     });
@@ -221,9 +223,21 @@ async function parseResponse(response) {
   const data = await response.text();
   try {
     return JSON.parse(data);
-  } catch (error) {
+  } catch {
+    return data;
   }
-  return data;
+}
+function getErrorMessage(data) {
+  if (typeof data !== "object" || data === null) {
+    return "Unable to determine error message.";
+  }
+  for (const key of ERROR_FIELDS) {
+    const value = data[key];
+    if (typeof value === "string") {
+      return value;
+    }
+  }
+  return "Network response was not OK.";
 }
 
 // node_modules/@keycloak/keycloak-admin-client/lib/utils/stringifyQueryParams.js
@@ -365,9 +379,9 @@ var Agent = class {
         return { [field]: resourceId };
       }
       if (Object.entries(headers || []).find(([key, value]) => key.toLowerCase() === "accept" && value === "application/octet-stream")) {
-        return res.arrayBuffer();
+        return await res.arrayBuffer();
       }
-      return parseResponse(res);
+      return await parseResponse(res);
     } catch (err) {
       if (err instanceof NetworkError && err.response.status === 404 && catchNotFound) {
         return null;
@@ -1529,6 +1543,7 @@ var Groups = class extends Resource {
       "q",
       "exact",
       "briefRepresentation",
+      "populateHierarchy",
       "first",
       "max"
     ]
@@ -1562,17 +1577,6 @@ var Groups = class extends Resource {
   count = this.makeRequest({
     method: "GET",
     path: "/count"
-  });
-  /**
-   * Set or create child.
-   * This will just set the parent if it exists. Create it and set the parent if the group doesn’t exist.
-   * @deprecated Use `createChildGroup` or `updateChildGroup` instead.
-   */
-  setOrCreateChild = this.makeUpdateRequest({
-    method: "POST",
-    path: "/{id}/children",
-    urlParamKeys: ["id"],
-    returnResourceIdInLocationHeader: { field: "id" }
   });
   /**
    * Creates a child group on the specified parent group. If the group already exists, then an error is returned.
@@ -2063,7 +2067,6 @@ var Organizations = class extends Resource {
   });
   create = this.makeRequest({
     method: "POST",
-    path: "/",
     returnResourceIdInLocationHeader: { field: "id" }
   });
   delById = this.makeRequest({
@@ -2092,9 +2095,19 @@ var Organizations = class extends Resource {
     path: "/{orgId}/members/{userId}",
     urlParamKeys: ["orgId", "userId"]
   });
+  memberOrganizations = this.makeRequest({
+    method: "GET",
+    path: "/members/{userId}/organizations",
+    urlParamKeys: ["userId"]
+  });
   invite = this.makeUpdateRequest({
     method: "POST",
     path: "/{orgId}/members/invite-user",
+    urlParamKeys: ["orgId"]
+  });
+  inviteExistingUser = this.makeUpdateRequest({
+    method: "POST",
+    path: "/{orgId}/members/invite-existing-user",
     urlParamKeys: ["orgId"]
   });
   listIdentityProviders = this.makeRequest({
